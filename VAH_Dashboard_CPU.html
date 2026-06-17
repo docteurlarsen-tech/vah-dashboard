@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VAH — Dashboard CPU</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #F4E9D8;
+    min-height: 100vh;
+    color: #1A1A1A;
+  }
+
+  /* HEADER */
+  .header {
+    background: #1A1A1A;
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #2D6A4F, #C9842A);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+
+  .header-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: white;
+    letter-spacing: 0.03em;
+  }
+
+  .header-sub {
+    font-size: 10px;
+    color: rgba(255,255,255,0.5);
+    font-family: monospace;
+  }
+
+  .cpu-badge {
+    background: #C9842A;
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 12px;
+  }
+
+  /* MAIN */
+  .main { padding: 16px; max-width: 600px; margin: 0 auto; }
+
+  /* SIGNAL CONVERGENCE */
+  .convergence {
+    background: linear-gradient(135deg, #2D6A4F, #3D8B6A);
+    border-radius: 12px;
+    padding: 16px 20px;
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 16px;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(45,106,79,0.4); }
+    50% { box-shadow: 0 0 0 8px rgba(45,106,79,0); }
+  }
+
+  .convergence-icon { font-size: 28px; }
+  .convergence-title { font-size: 16px; font-weight: 700; }
+  .convergence-sub { font-size: 12px; opacity: 0.85; margin-top: 3px; }
+
+  /* CARTE STATUT */
+  .section-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: #6B6B6B;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 10px;
+    margin-top: 20px;
+  }
+
+  .acteurs-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .acteur-card {
+    background: white;
+    border-radius: 12px;
+    padding: 14px;
+    border: 2px solid #E8DDD0;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .acteur-card.vert   { border-color: #2D6A4F; background: #F0F8F4; }
+  .acteur-card.jaune  { border-color: #C9842A; background: #FDF6EC; }
+  .acteur-card.rouge  { border-color: #C0392B; background: #FDF0EF; opacity: 0.7; }
+
+  .acteur-card.cpu {
+    grid-column: 1 / -1;
+    border-color: #1A1A1A;
+    background: #1A1A1A;
+    color: white;
+  }
+
+  .graine {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    margin-bottom: 8px;
+  }
+
+  .graine.decouverte  { background: #E0D8CE; }
+  .graine.construction { background: linear-gradient(135deg, #E8A84A, #C9842A); box-shadow: 0 0 8px rgba(201,132,42,0.4); }
+  .graine.vert        { background: linear-gradient(135deg, #3D8B6A, #2D6A4F); box-shadow: 0 0 8px rgba(45,106,79,0.4); }
+  .graine.rouge       { background: linear-gradient(135deg, #E74C3C, #C0392B); }
+  .graine.cpu         { background: linear-gradient(135deg, #C9842A, #2D6A4F); }
+
+  .acteur-nom {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1A1A1A;
+    margin-bottom: 2px;
+  }
+
+  .acteur-card.cpu .acteur-nom { color: white; }
+
+  .acteur-role {
+    font-size: 10px;
+    color: #6B6B6B;
+    margin-bottom: 6px;
+  }
+
+  .acteur-card.cpu .acteur-role { color: rgba(255,255,255,0.6); }
+
+  .statut-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 10px;
+  }
+
+  .statut-pill.decouverte   { background: #E8E0D8; color: #6B6B6B; }
+  .statut-pill.construction { background: rgba(201,132,42,0.15); color: #C9842A; }
+  .statut-pill.vert         { background: rgba(45,106,79,0.15); color: #2D6A4F; }
+  .statut-pill.rouge        { background: rgba(192,57,43,0.15); color: #C0392B; }
+  .statut-pill.cpu          { background: rgba(201,132,42,0.3); color: #F4E9D8; }
+
+  .donnees-badge {
+    position: absolute;
+    top: 10px; right: 10px;
+    font-size: 10px;
+    background: rgba(45,106,79,0.1);
+    color: #2D6A4F;
+    border-radius: 8px;
+    padding: 2px 6px;
+  }
+
+  /* BARRE DE PROGRESSION */
+  .progression-card {
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    border: 1px solid #E8DDD0;
+  }
+
+  .progression-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+
+  .progression-label { font-size: 12px; color: #6B6B6B; }
+  .progression-count { font-size: 12px; font-weight: 700; color: #2D6A4F; font-family: monospace; }
+
+  .barre-fond {
+    height: 8px;
+    background: #E8DDD0;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .barre-remplissage {
+    height: 100%;
+    background: linear-gradient(90deg, #2D6A4F, #3D8B6A);
+    border-radius: 4px;
+    transition: width 0.8s ease;
+  }
+
+  /* POOL PARTAGÉ */
+  .pool-card {
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    border: 1px solid #E8DDD0;
+  }
+
+  .pool-vide {
+    font-size: 13px;
+    color: #6B6B6B;
+    font-style: italic;
+    padding: 8px 0;
+  }
+
+  .pool-item {
+    padding: 8px 10px;
+    background: rgba(45,106,79,0.05);
+    border-radius: 6px;
+    border-left: 3px solid #2D6A4F;
+    margin-bottom: 6px;
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+
+  .pool-acteur {
+    font-size: 10px;
+    font-weight: 700;
+    color: #2D6A4F;
+    flex-shrink: 0;
+    padding-top: 2px;
+    font-family: monospace;
+  }
+
+  .pool-texte {
+    font-size: 12px;
+    color: #1A1A1A;
+    line-height: 1.4;
+  }
+
+  /* ALERTES */
+  .alertes-card {
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    border: 1px solid #E8DDD0;
+  }
+
+  .alerte-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid #F0E8DC;
+    font-size: 12px;
+    color: #1A1A1A;
+  }
+
+  .alerte-item:last-child { border-bottom: none; }
+  .alerte-time { font-size: 10px; color: #6B6B6B; font-family: monospace; flex-shrink: 0; }
+
+  .alerte-vide {
+    font-size: 13px;
+    color: #6B6B6B;
+    font-style: italic;
+  }
+
+  /* BOUSSOLE */
+  .boussole-card {
+    background: linear-gradient(135deg, #F4E9D8, #FDF6EC);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    border: 1px solid #E8DDD0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .boussole-item {}
+  .boussole-label { font-size: 10px; color: #6B6B6B; text-transform: uppercase; letter-spacing: 0.05em; }
+  .boussole-valeur { font-size: 18px; font-weight: 700; color: #2D6A4F; margin: 3px 0 2px; }
+  .boussole-sub { font-size: 10px; color: #6B6B6B; }
+
+  /* REFRESH */
+  .refresh-btn {
+    width: 100%;
+    background: #1A1A1A;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  /* FOOTER */
+  .footer {
+    text-align: center;
+    font-size: 10px;
+    color: #6B6B6B;
+    padding: 16px 0 32px;
+    font-family: monospace;
+  }
+
+  /* LOADING */
+  .loading {
+    text-align: center;
+    padding: 60px 20px;
+    color: #6B6B6B;
+    font-size: 14px;
+  }
+
+  .spinner {
+    width: 32px; height: 32px;
+    border: 3px solid #E8DDD0;
+    border-top-color: #2D6A4F;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 16px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* CONFIG */
+  .config-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.8);
+    z-index: 200;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+
+  .config-box {
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    width: 100%;
+    max-width: 400px;
+  }
+
+  .config-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #2D6A4F;
+    margin-bottom: 16px;
+  }
+
+  .config-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #6B6B6B;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+    margin-top: 12px;
+  }
+
+  .config-input {
+    width: 100%;
+    border: 1px solid #E8DDD0;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 13px;
+    font-family: monospace;
+    outline: none;
+    background: #F4E9D8;
+  }
+
+  .config-input:focus { border-color: #2D6A4F; }
+
+  .config-btn {
+    width: 100%;
+    background: #2D6A4F;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 20px;
+  }
+
+  .config-note {
+    font-size: 11px;
+    color: #6B6B6B;
+    margin-top: 12px;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+
+<!-- CONFIG OVERLAY -->
+<div class="config-overlay" id="configOverlay">
+  <div class="config-box">
+    <div class="config-title">🌿 Configuration VAH Dashboard</div>
+    <div class="config-label">URL Firebase</div>
+    <input class="config-input" id="firebaseUrl" placeholder="https://vah-simulation-xxx.firebaseio.com" type="url">
+    <div class="config-note">
+      Tu trouves cette URL dans Firebase Console → Realtime Database.<br>
+      Elle est sauvegardée sur cet appareil.
+    </div>
+    <button class="config-btn" onclick="saveConfig()">Connecter le Dashboard</button>
+  </div>
+</div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <div class="logo">🌿</div>
+    <div>
+      <div class="header-title">VAH — Dashboard CPU</div>
+      <div class="header-sub">La Fabrik'École · Mbour · Temps réel</div>
+    </div>
+  </div>
+  <div class="cpu-badge">CPU</div>
+</div>
+
+<!-- MAIN -->
+<div class="main" id="mainContent">
+  <div class="loading">
+    <div class="spinner"></div>
+    Connexion Firebase...
+  </div>
+</div>
+
+<script>
+// ─── CONFIG ──────────────────────────────────────────────────────
+const ACTEURS_CONFIG = {
+  michael: { nom: "Michael Ciré Bâ", role: "CPU — Fondateur",           noeud: "La Fabrik'École · Mbour", isCPU: true  },
+  charles: { nom: "Charles Haddad",  role: "OS — Ancre territoriale",   noeud: "Ngoltongo · Sindia",      isCPU: false },
+  carole:  { nom: "Carole",          role: "Architecte portail",        noeud: "Adwo Lodge · Petite Côte",isCPU: false },
+  michel:  { nom: "Michel",          role: "Ambassadeur",               noeud: "Adwo Lodge · Abidjan",    isCPU: false },
+  babacar: { nom: "Babacar Cissé",   role: "Co-Architecte physique",    noeud: "Protosen · Dakar",        isCPU: false },
+};
+
+const STATUTS = {
+  decouverte:   { label: "En découverte",    icone: "○",  emoji: "⚪" },
+  construction: { label: "En construction",  icone: "◔",  emoji: "🟡" },
+  vert:         { label: "Opérationnel",     icone: "🌿", emoji: "🟢" },
+  rouge:        { label: "Ne participe pas", icone: "✕",  emoji: "🔴" },
+  cpu:          { label: "CPU · Toujours actif", icone: "🌿", emoji: "🟢" },
+};
+
+let db = null;
+let alertes = [];
+
+// ─── CONFIG FIREBASE ─────────────────────────────────────────────
+function saveConfig() {
+  const url = document.getElementById('firebaseUrl').value.trim();
+  if (!url || !url.includes('firebaseio.com')) {
+    alert('URL Firebase invalide — elle doit contenir firebaseio.com');
+    return;
+  }
+  localStorage.setItem('vah_firebase_url', url);
+  document.getElementById('configOverlay').style.display = 'none';
+  initFirebase(url);
+}
+
+function initFirebase(url) {
+  const config = { databaseURL: url };
+  if (!firebase.apps.length) {
+    firebase.initializeApp(config);
+  }
+  db = firebase.database();
+  startListening();
+}
+
+// ─── ÉCOUTE FIREBASE EN TEMPS RÉEL ───────────────────────────────
+function startListening() {
+  // Écouter les statuts globaux
+  db.ref('global/statuts').on('value', (snap) => {
+    const statuts = snap.val() || {};
+    renderDashboard(statuts);
+  });
+
+  // Écouter les données partagées de chaque acteur
+  db.ref('users').on('value', (snap) => {
+    const users = snap.val() || {};
+    renderPool(users);
+  });
+
+  // Écouter la convergence
+  db.ref('global/convergence').on('value', (snap) => {
+    const conv = snap.val();
+    if (conv && conv.atteinte) {
+      addAlerte('🌿 CONVERGENCE — Tous les statuts sont verts. Réunion à convoquer.');
+    }
+  });
+}
+
+// ─── RENDU PRINCIPAL ─────────────────────────────────────────────
+function renderDashboard(statuts) {
+  const actifs = Object.entries(ACTEURS_CONFIG).filter(([id, a]) => !a.isCPU);
+  const vertsCount = actifs.filter(([id]) => {
+    const s = statuts[id];
+    return s && s.statut === 'vert';
+  }).length;
+  const actifsCount = actifs.filter(([id]) => {
+    const s = statuts[id];
+    return !s || s.statut !== 'rouge';
+  }).length;
+
+  const convergence = actifsCount > 0 && vertsCount === actifsCount;
+  const progression = actifsCount > 0 ? Math.round((vertsCount / actifsCount) * 100) : 0;
+
+  let html = '';
+
+  // Signal convergence
+  if (convergence) {
+    html += `
+    <div class="convergence">
+      <div class="convergence-icon">🌿</div>
+      <div>
+        <div class="convergence-title">Convergence atteinte</div>
+        <div class="convergence-sub">Tous les statuts actifs sont verts — convoquer la réunion</div>
+      </div>
+    </div>`;
+  }
+
+  // Grille acteurs
+  html += `<div class="section-title">Statuts des participants</div>`;
+  html += `<div class="acteurs-grid">`;
+
+  // Michael CPU en premier
+  html += renderActeurCard('michael', ACTEURS_CONFIG.michael, { statut: 'cpu' }, {});
+
+  // Les autres
+  Object.entries(ACTEURS_CONFIG).forEach(([id, acteur]) => {
+    if (acteur.isCPU) return;
+    const data = statuts[id] || {};
+    const statut = data.statut || 'decouverte';
+    html += renderActeurCard(id, acteur, { statut }, data);
+  });
+
+  html += `</div>`;
+
+  // Progression
+  html += `
+  <div class="progression-card">
+    <div class="progression-header">
+      <span class="progression-label">Progression vers la réunion</span>
+      <span class="progression-count">${vertsCount} / ${actifsCount} opérationnels</span>
+    </div>
+    <div class="barre-fond">
+      <div class="barre-remplissage" style="width: ${progression}%"></div>
+    </div>
+  </div>`;
+
+  // Boussole
+  html += `
+  <div class="section-title">Boussole temporelle</div>
+  <div class="boussole-card">
+    <div class="boussole-item">
+      <div class="boussole-label">Engagement</div>
+      <div class="boussole-valeur">2 ans</div>
+      <div class="boussole-sub">Maintenant → 2028</div>
+    </div>
+    <div class="boussole-item">
+      <div class="boussole-label">Horizon</div>
+      <div class="boussole-valeur">Dak'Art</div>
+      <div class="boussole-sub">Biennale Dakar 2028</div>
+    </div>
+    <div class="boussole-item">
+      <div class="boussole-label">Deadline OFF</div>
+      <div class="boussole-valeur">Fév 2028</div>
+      <div class="boussole-sub">Dossier à soumettre</div>
+    </div>
+    <div class="boussole-item">
+      <div class="boussole-label">Après 2028</div>
+      <div class="boussole-valeur">Implantation</div>
+      <div class="boussole-sub">Village Physique Unifié</div>
+    </div>
+  </div>`;
+
+  // Pool partagé
+  html += `<div class="section-title">Pool partagé 👥</div>`;
+  html += `<div class="pool-card" id="poolCard"><div class="pool-vide">Chargement des données partagées...</div></div>`;
+
+  // Alertes
+  html += `<div class="section-title">Alertes système</div>`;
+  html += `<div class="alertes-card">`;
+  if (alertes.length === 0) {
+    html += `<div class="alerte-vide">Aucune alerte active</div>`;
+  } else {
+    alertes.slice(-5).reverse().forEach(a => {
+      html += `<div class="alerte-item"><span>${a.msg}</span><span class="alerte-time">${a.time}</span></div>`;
+    });
+  }
+  html += `</div>`;
+
+  // Bouton refresh
+  html += `<button class="refresh-btn" onclick="location.reload()">↻ Rafraîchir</button>`;
+
+  // Footer
+  html += `<div class="footer">VAH · Dashboard CPU · Confidentiel · Michael Ciré Bâ</div>`;
+
+  document.getElementById('mainContent').innerHTML = html;
+}
+
+function renderActeurCard(id, acteur, data, fullData) {
+  const statut = data.statut || 'decouverte';
+  const s = STATUTS[statut] || STATUTS.decouverte;
+  const nbPartages = fullData.donneesPartageesCount || 0;
+
+  const graineEmoji = statut === 'vert' || statut === 'cpu' ? '🌿' :
+                      statut === 'construction' ? '🌱' :
+                      statut === 'rouge' ? '🪵' : '○';
+
+  return `
+  <div class="acteur-card ${acteur.isCPU ? 'cpu' : statut}">
+    ${nbPartages > 0 ? `<div class="donnees-badge">👥 ${nbPartages}</div>` : ''}
+    <div class="graine ${acteur.isCPU ? 'cpu' : statut}">${graineEmoji}</div>
+    <div class="acteur-nom">${acteur.nom.split(' ')[0]}${acteur.isCPU ? ' <small style="font-size:9px;background:rgba(201,132,42,0.8);color:white;padding:1px 4px;border-radius:3px;">CPU</small>' : ''}</div>
+    <div class="acteur-role">${acteur.role}</div>
+    <div class="statut-pill ${acteur.isCPU ? 'cpu' : statut}">${s.emoji} ${s.label}</div>
+  </div>`;
+}
+
+function renderPool(users) {
+  const poolCard = document.getElementById('poolCard');
+  if (!poolCard) return;
+
+  let items = [];
+  Object.entries(users).forEach(([userId, userData]) => {
+    const acteurId = userData.acteurId;
+    if (!acteurId) return;
+    const acteur = ACTEURS_CONFIG[acteurId];
+    if (!acteur) return;
+    const partages = userData.donneesPartagees || [];
+    partages.forEach(d => {
+      items.push({ nom: acteur.nom.split(' ')[0], texte: d.texte || d });
+    });
+  });
+
+  if (items.length === 0) {
+    poolCard.innerHTML = `<div class="pool-vide">Aucune donnée partagée pour l'instant.</div>`;
+    return;
+  }
+
+  poolCard.innerHTML = items.map(item => `
+    <div class="pool-item">
+      <span class="pool-acteur">${item.nom}</span>
+      <span class="pool-texte">${item.texte}</span>
+    </div>
+  `).join('');
+}
+
+function addAlerte(msg) {
+  const now = new Date();
+  const time = `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
+  alertes.push({ msg, time });
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────
+window.onload = () => {
+  const savedUrl = localStorage.getItem('vah_firebase_url');
+  if (savedUrl) {
+    document.getElementById('firebaseUrl').value = savedUrl;
+    document.getElementById('configOverlay').style.display = 'none';
+    initFirebase(savedUrl);
+  }
+  // Sinon l'overlay de config reste visible
+};
+</script>
+</body>
+</html>
