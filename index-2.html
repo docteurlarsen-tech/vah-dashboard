@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VAH — Dashboard CPU</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: Arial, sans-serif; background:#F4E9D8; min-height:100vh; color:#1A1A1A; }
+
+.header {
+  background:#1A1A1A; padding:14px 20px;
+  display:flex; align-items:center; justify-content:space-between;
+  position:sticky; top:0; z-index:100;
+}
+.header-left { display:flex; align-items:center; gap:10px; }
+.logo { width:32px; height:32px; border-radius:50%; background:linear-gradient(135deg,#2D6A4F,#C9842A); display:flex; align-items:center; justify-content:center; font-size:16px; }
+.header-title { font-size:15px; font-weight:700; color:white; }
+.header-sub { font-size:10px; color:rgba(255,255,255,0.5); font-family:monospace; }
+.cpu-badge { background:#C9842A; color:white; font-size:10px; font-weight:700; padding:4px 10px; border-radius:12px; }
+
+.main { padding:16px; max-width:600px; margin:0 auto; }
+
+.section-title { font-size:11px; font-weight:700; color:#6B6B6B; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:10px; margin-top:20px; }
+
+.acteurs-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px; }
+
+.acteur-card { background:white; border-radius:12px; padding:14px; border:2px solid #E8DDD0; transition:all 0.3s; }
+.acteur-card.vert   { border-color:#2D6A4F; background:#F0F8F4; }
+.acteur-card.construction { border-color:#C9842A; background:#FDF6EC; }
+.acteur-card.rouge  { border-color:#C0392B; background:#FDF0EF; opacity:0.7; }
+.acteur-card.cpu    { grid-column:1/-1; border-color:#1A1A1A; background:#1A1A1A; color:white; }
+
+.graine { width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:18px; margin-bottom:8px; }
+.graine.decouverte    { background:#E0D8CE; }
+.graine.construction  { background:linear-gradient(135deg,#E8A84A,#C9842A); box-shadow:0 0 8px rgba(201,132,42,0.4); }
+.graine.vert          { background:linear-gradient(135deg,#3D8B6A,#2D6A4F); box-shadow:0 0 8px rgba(45,106,79,0.4); }
+.graine.rouge         { background:linear-gradient(135deg,#E74C3C,#C0392B); }
+.graine.cpu           { background:linear-gradient(135deg,#C9842A,#2D6A4F); }
+
+.acteur-nom { font-size:13px; font-weight:700; color:#1A1A1A; margin-bottom:2px; }
+.acteur-card.cpu .acteur-nom { color:white; }
+.acteur-role { font-size:10px; color:#6B6B6B; margin-bottom:6px; }
+.acteur-card.cpu .acteur-role { color:rgba(255,255,255,0.6); }
+
+.statut-pill { display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:600; padding:3px 8px; border-radius:10px; }
+.statut-pill.decouverte    { background:#E8E0D8; color:#6B6B6B; }
+.statut-pill.construction  { background:rgba(201,132,42,0.15); color:#C9842A; }
+.statut-pill.vert          { background:rgba(45,106,79,0.15); color:#2D6A4F; }
+.statut-pill.rouge         { background:rgba(192,57,43,0.15); color:#C0392B; }
+.statut-pill.cpu           { background:rgba(201,132,42,0.3); color:#F4E9D8; }
+
+.card { background:white; border-radius:12px; padding:16px; margin-bottom:16px; border:1px solid #E8DDD0; }
+
+.progression-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+.progression-label { font-size:12px; color:#6B6B6B; }
+.progression-count { font-size:12px; font-weight:700; color:#2D6A4F; font-family:monospace; }
+.barre-fond { height:8px; background:#E8DDD0; border-radius:4px; overflow:hidden; }
+.barre { height:100%; background:linear-gradient(90deg,#2D6A4F,#3D8B6A); border-radius:4px; transition:width 0.8s ease; }
+
+.pool-vide { font-size:13px; color:#6B6B6B; font-style:italic; }
+.pool-item { padding:8px 10px; background:rgba(45,106,79,0.05); border-radius:6px; border-left:3px solid #2D6A4F; margin-bottom:6px; display:flex; gap:8px; }
+.pool-acteur { font-size:10px; font-weight:700; color:#2D6A4F; flex-shrink:0; font-family:monospace; padding-top:2px; }
+.pool-texte { font-size:12px; color:#1A1A1A; line-height:1.4; }
+
+.boussole-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.boussole-label { font-size:10px; color:#6B6B6B; text-transform:uppercase; letter-spacing:0.05em; }
+.boussole-valeur { font-size:18px; font-weight:700; color:#2D6A4F; margin:3px 0 2px; }
+.boussole-sub { font-size:10px; color:#6B6B6B; }
+
+.convergence { background:linear-gradient(135deg,#2D6A4F,#3D8B6A); border-radius:12px; padding:16px 20px; color:white; display:flex; align-items:center; gap:14px; margin-bottom:16px; }
+
+.refresh-btn { width:100%; background:#1A1A1A; color:white; border:none; border-radius:10px; padding:12px; font-size:13px; font-weight:600; cursor:pointer; margin-bottom:16px; }
+.footer { text-align:center; font-size:10px; color:#6B6B6B; padding:16px 0 32px; font-family:monospace; }
+
+.spinner { width:28px; height:28px; border:3px solid #E8DDD0; border-top-color:#2D6A4F; border-radius:50%; animation:spin 0.8s linear infinite; margin:0 auto 12px; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+.config-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:200; display:flex; align-items:center; justify-content:center; padding:20px; }
+.config-box { background:white; border-radius:16px; padding:24px; width:100%; max-width:400px; }
+.config-title { font-size:16px; font-weight:700; color:#2D6A4F; margin-bottom:16px; }
+.config-label { font-size:11px; font-weight:600; color:#6B6B6B; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px; margin-top:12px; }
+.config-input { width:100%; border:1px solid #E8DDD0; border-radius:8px; padding:10px 12px; font-size:13px; font-family:monospace; outline:none; background:#F4E9D8; }
+.config-btn { width:100%; background:#2D6A4F; color:white; border:none; border-radius:8px; padding:12px; font-size:14px; font-weight:700; cursor:pointer; margin-top:20px; }
+.config-note { font-size:11px; color:#6B6B6B; margin-top:12px; line-height:1.5; }
+.error-msg { color:#C0392B; font-size:12px; margin-top:8px; display:none; }
+</style>
+</head>
+<body>
+
+<div class="config-overlay" id="configOverlay">
+  <div class="config-box">
+    <div class="config-title">🌿 VAH Dashboard CPU</div>
+    <div class="config-label">URL Firebase Realtime Database</div>
+    <input class="config-input" id="firebaseUrl" placeholder="https://vah-simulation-default-rtdb.europe-west1.firebasedatabase.app" type="url">
+    <div class="error-msg" id="errorMsg">URL invalide — vérifier dans Firebase Console</div>
+    <div class="config-note">Sans slash à la fin. Trouvez cette URL dans Firebase Console → Realtime Database.</div>
+    <button class="config-btn" onclick="saveConfig()">Connecter</button>
+  </div>
+</div>
+
+<div class="header">
+  <div class="header-left">
+    <div class="logo">🌿</div>
+    <div>
+      <div class="header-title">VAH — Dashboard CPU</div>
+      <div class="header-sub" id="lastUpdate">La Fabrik'École · Mbour</div>
+    </div>
+  </div>
+  <div class="cpu-badge">CPU</div>
+</div>
+
+<div class="main" id="mainContent">
+  <div style="text-align:center;padding:60px 20px">
+    <div class="spinner"></div>
+    <p style="color:#6B6B6B;font-size:14px">Chargement...</p>
+  </div>
+</div>
+
+<script>
+const ACTEURS_CONFIG = {
+  michael: { nom:"Michael Ciré Bâ", role:"CPU — Fondateur",          noeud:"La Fabrik'École · Mbour",  isCPU:true  },
+  charles: { nom:"Charles Haddad",  role:"Ancre territoriale",        noeud:"Ngoltongo · Sindia",        isCPU:false },
+  carole:  { nom:"Carole",          role:"Architecte portail",        noeud:"Adwo Lodge · Petite Côte",  isCPU:false },
+  michel:  { nom:"Michel",          role:"Ambassadeur",               noeud:"Adwo Lodge · Abidjan",      isCPU:false },
+  babacar: { nom:"Babacar Cissé",   role:"Co-Architecte physique",    noeud:"Protosen · Dakar",          isCPU:false },
+};
+
+const STATUTS = {
+  decouverte:   { label:"En découverte",     emoji:"⚪" },
+  construction: { label:"En construction",   emoji:"🟡" },
+  vert:         { label:"Opérationnel",      emoji:"🟢" },
+  rouge:        { label:"Ne participe pas",  emoji:"🔴" },
+};
+
+let FIREBASE_URL = '';
+let refreshInterval = null;
+
+function saveConfig() {
+  const url = document.getElementById('firebaseUrl').value.trim().replace(/\/$/, '');
+  if (!url || !url.includes('firebasedatabase')) {
+    document.getElementById('errorMsg').style.display = 'block';
+    return;
+  }
+  localStorage.setItem('vah_firebase_url', url);
+  FIREBASE_URL = url;
+  document.getElementById('configOverlay').style.display = 'none';
+  loadData();
+  refreshInterval = setInterval(loadData, 10000); // refresh toutes les 10s
+}
+
+async function fetchFirebase(path) {
+  const url = `${FIREBASE_URL}/${path}.json`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return await res.json();
+}
+
+async function loadData() {
+  try {
+    const [statuts, users, convergence] = await Promise.all([
+      fetchFirebase('global/statuts'),
+      fetchFirebase('users'),
+      fetchFirebase('global/convergence'),
+    ]);
+    renderDashboard(statuts || {}, users || {}, convergence);
+    const now = new Date();
+    document.getElementById('lastUpdate').textContent = 
+      `Mis à jour ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+  } catch(err) {
+    console.error('Erreur chargement:', err);
+    document.getElementById('mainContent').innerHTML = `
+      <div style="padding:20px;color:#C0392B;font-family:Arial;font-size:13px;text-align:center">
+        <p><strong>Erreur de connexion Firebase</strong></p>
+        <p style="margin:10px 0;color:#6B6B6B">${err.message}</p>
+        <button onclick="localStorage.clear();location.reload()" 
+          style="background:#2D6A4F;color:white;border:none;padding:10px 20px;border-radius:8px;font-size:14px;cursor:pointer;margin-top:10px">
+          Reconfigurer
+        </button>
+      </div>`;
+  }
+}
+
+function renderDashboard(statuts, users, convergence) {
+  const actifs = Object.entries(ACTEURS_CONFIG).filter(([id,a]) => !a.isCPU);
+  const vertsCount = actifs.filter(([id]) => statuts[id]?.statut === 'vert').length;
+  const actifsCount = actifs.filter(([id]) => statuts[id]?.statut !== 'rouge').length;
+  const isConvergence = convergence?.atteinte || (actifsCount > 0 && vertsCount === actifsCount);
+  const progression = actifsCount > 0 ? Math.round((vertsCount / actifsCount) * 100) : 0;
+
+  let html = '';
+
+  if (isConvergence) {
+    html += `<div class="convergence">
+      <span style="font-size:28px">🌿</span>
+      <div>
+        <div style="font-size:16px;font-weight:700">Convergence atteinte</div>
+        <div style="font-size:12px;opacity:0.85;margin-top:3px">Tous les statuts actifs sont verts — convoquer la réunion</div>
+      </div>
+    </div>`;
+  }
+
+  // Grille acteurs
+  html += `<div class="section-title">Statuts des participants</div><div class="acteurs-grid">`;
+
+  // CPU en premier
+  html += `<div class="acteur-card cpu">
+    <div class="graine cpu">🌿</div>
+    <div class="acteur-nom">Michael Ciré Bâ <span style="font-size:9px;background:rgba(201,132,42,0.8);color:white;padding:1px 4px;border-radius:3px;margin-left:4px">CPU</span></div>
+    <div class="acteur-role">CPU — Fondateur · La Fabrik'École · Mbour</div>
+    <div class="statut-pill cpu">🟢 Opérationnel</div>
+  </div>`;
+
+  actifs.forEach(([id, acteur]) => {
+    const statut = statuts[id]?.statut || 'decouverte';
+    const s = STATUTS[statut] || STATUTS.decouverte;
+    const graineEmoji = statut === 'vert' ? '🌿' : statut === 'construction' ? '🌱' : statut === 'rouge' ? '🪵' : '○';
+    const userData = users[Object.keys(users).find(k => users[k]?.acteurId === id)] || {};
+    const nbPartages = userData.donneesPartagees ? Object.keys(userData.donneesPartagees).length : 0;
+
+    html += `<div class="acteur-card ${statut}">
+      ${nbPartages > 0 ? `<div style="position:absolute;top:10px;right:10px;font-size:10px;background:rgba(45,106,79,0.1);color:#2D6A4F;border-radius:8px;padding:2px 6px">👥 ${nbPartages}</div>` : ''}
+      <div class="graine ${statut}">${graineEmoji}</div>
+      <div class="acteur-nom">${acteur.nom.split(' ')[0]}</div>
+      <div class="acteur-role">${acteur.role}</div>
+      <div class="statut-pill ${statut}">${s.emoji} ${s.label}</div>
+    </div>`;
+  });
+
+  html += `</div>`;
+
+  // Progression
+  html += `<div class="card">
+    <div class="progression-header">
+      <span class="progression-label">Progression vers la réunion</span>
+      <span class="progression-count">${vertsCount} / ${actifsCount} opérationnels</span>
+    </div>
+    <div class="barre-fond"><div class="barre" style="width:${progression}%"></div></div>
+  </div>`;
+
+  // Pool partagé
+  let poolItems = [];
+  Object.values(users).forEach(userData => {
+    const acteurId = userData.acteurId;
+    if (!acteurId || !ACTEURS_CONFIG[acteurId]) return;
+    const nom = ACTEURS_CONFIG[acteurId].nom.split(' ')[0];
+    const partages = userData.donneesPartagees || [];
+    const arr = Array.isArray(partages) ? partages : Object.values(partages);
+    arr.forEach(d => poolItems.push({ nom, texte: d.texte || d }));
+  });
+
+  html += `<div class="section-title">Pool partagé 👥</div><div class="card">`;
+  if (poolItems.length === 0) {
+    html += `<div class="pool-vide">Aucune donnée partagée pour l'instant.</div>`;
+  } else {
+    poolItems.forEach(item => {
+      html += `<div class="pool-item"><span class="pool-acteur">${item.nom}</span><span class="pool-texte">${item.texte}</span></div>`;
+    });
+  }
+  html += `</div>`;
+
+  // Boussole
+  html += `<div class="section-title">Boussole temporelle</div>
+  <div class="card"><div class="boussole-grid">
+    <div><div class="boussole-label">Engagement</div><div class="boussole-valeur">2 ans</div><div class="boussole-sub">Maintenant → 2028</div></div>
+    <div><div class="boussole-label">Horizon</div><div class="boussole-valeur">Dak'Art</div><div class="boussole-sub">Biennale Dakar 2028</div></div>
+    <div><div class="boussole-label">Deadline OFF</div><div class="boussole-valeur">Fév 2028</div><div class="boussole-sub">Dossier à soumettre</div></div>
+    <div><div class="boussole-label">Après 2028</div><div class="boussole-valeur">Implantation</div><div class="boussole-sub">Village Physique Unifié</div></div>
+  </div></div>`;
+
+  html += `<button class="refresh-btn" onclick="loadData()">↻ Actualiser maintenant</button>`;
+  html += `<div class="footer">VAH · Dashboard CPU · Confidentiel · Michael Ciré Bâ · Actualisation auto toutes les 10s</div>`;
+
+  document.getElementById('mainContent').innerHTML = html;
+}
+
+// Init
+window.onload = () => {
+  const savedUrl = localStorage.getItem('vah_firebase_url');
+  if (savedUrl) {
+    FIREBASE_URL = savedUrl;
+    document.getElementById('configOverlay').style.display = 'none';
+    loadData();
+    refreshInterval = setInterval(loadData, 10000);
+  }
+};
+</script>
+</body>
+</html>
