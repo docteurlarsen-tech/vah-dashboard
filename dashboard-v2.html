@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VAH — Dashboard CPU V2</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: Arial, sans-serif; background:#F4E9D8; min-height:100vh; color:#1A1A1A; }
+
+/* HEADER */
+.header { background:#1A1A1A; padding:14px 20px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; }
+.header-left { display:flex; align-items:center; gap:10px; }
+.logo { width:32px; height:32px; border-radius:50%; background:linear-gradient(135deg,#2D6A4F,#C9842A); display:flex; align-items:center; justify-content:center; font-size:16px; }
+.header-title { font-size:15px; font-weight:700; color:white; }
+.header-sub { font-size:10px; color:rgba(255,255,255,0.5); font-family:monospace; }
+.cpu-badge { background:#C9842A; color:white; font-size:10px; font-weight:700; padding:4px 10px; border-radius:12px; cursor:pointer; }
+
+/* ONGLETS */
+.tabs { display:flex; background:#1A1A1A; border-top:1px solid rgba(255,255,255,0.1); }
+.tab { flex:1; padding:10px; text-align:center; font-size:11px; font-weight:600; color:rgba(255,255,255,0.5); cursor:pointer; border-bottom:2px solid transparent; transition:all 0.2s; }
+.tab.active { color:#2D6A4F; border-bottom-color:#2D6A4F; background:rgba(45,106,79,0.1); }
+
+/* MAIN */
+.main { padding:16px; max-width:700px; margin:0 auto; }
+
+/* CARDS */
+.card { background:white; border-radius:12px; padding:16px; margin-bottom:12px; border:1px solid #E8DDD0; }
+.card-title { font-size:11px; font-weight:700; color:#6B6B6B; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:12px; }
+
+/* ACTEURS */
+.acteurs-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+.acteur-card { background:white; border-radius:12px; padding:14px; border:2px solid #E8DDD0; transition:all 0.3s; cursor:pointer; }
+.acteur-card.vert   { border-color:#2D6A4F; background:#F0F8F4; }
+.acteur-card.construction { border-color:#C9842A; background:#FDF6EC; }
+.acteur-card.rouge  { border-color:#C0392B; background:#FDF0EF; opacity:0.7; }
+.acteur-card.cpu    { grid-column:1/-1; border-color:#1A1A1A; background:#1A1A1A; }
+
+.graine { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px; margin-bottom:6px; }
+.graine.decouverte { background:#E0D8CE; }
+.graine.construction { background:linear-gradient(135deg,#E8A84A,#C9842A); box-shadow:0 0 8px rgba(201,132,42,0.4); }
+.graine.vert { background:linear-gradient(135deg,#3D8B6A,#2D6A4F); box-shadow:0 0 8px rgba(45,106,79,0.4); }
+.graine.rouge { background:linear-gradient(135deg,#E74C3C,#C0392B); }
+.graine.cpu { background:linear-gradient(135deg,#C9842A,#2D6A4F); }
+
+.acteur-nom { font-size:12px; font-weight:700; color:#1A1A1A; }
+.acteur-card.cpu .acteur-nom { color:white; }
+.acteur-role { font-size:10px; color:#6B6B6B; margin:2px 0 6px; }
+.acteur-card.cpu .acteur-role { color:rgba(255,255,255,0.6); }
+
+.statut-pill { display:inline-flex; align-items:center; gap:3px; font-size:10px; font-weight:600; padding:2px 8px; border-radius:10px; }
+.statut-pill.decouverte { background:#E8E0D8; color:#6B6B6B; }
+.statut-pill.construction { background:rgba(201,132,42,0.15); color:#C9842A; }
+.statut-pill.vert { background:rgba(45,106,79,0.15); color:#2D6A4F; }
+.statut-pill.rouge { background:rgba(192,57,43,0.15); color:#C0392B; }
+.statut-pill.cpu { background:rgba(201,132,42,0.3); color:#F4E9D8; }
+
+.acteur-detail { margin-top:8px; padding-top:8px; border-top:1px solid #F0E8DC; display:none; }
+.acteur-card.expanded .acteur-detail { display:block; }
+.detail-line { font-size:11px; color:#6B6B6B; margin-bottom:3px; }
+.detail-val { color:#1A1A1A; font-weight:600; }
+
+/* PROGRESSION */
+.progression-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.progression-label { font-size:12px; color:#6B6B6B; }
+.progression-count { font-size:12px; font-weight:700; color:#2D6A4F; font-family:monospace; }
+.barre-fond { height:8px; background:#E8DDD0; border-radius:4px; overflow:hidden; }
+.barre { height:100%; background:linear-gradient(90deg,#2D6A4F,#3D8B6A); border-radius:4px; transition:width 0.8s ease; }
+
+/* POOL */
+.pool-vide { font-size:13px; color:#6B6B6B; font-style:italic; }
+.pool-item { padding:8px 10px; background:rgba(45,106,79,0.05); border-radius:6px; border-left:3px solid #2D6A4F; margin-bottom:6px; display:flex; gap:8px; }
+.pool-acteur { font-size:10px; font-weight:700; color:#2D6A4F; flex-shrink:0; font-family:monospace; }
+.pool-texte { font-size:12px; color:#1A1A1A; line-height:1.4; }
+
+/* RÉSERVOIRS */
+.reservoir-section { margin-bottom:16px; }
+.reservoir-title { font-size:13px; font-weight:700; color:#1A1A1A; margin-bottom:8px; display:flex; align-items:center; gap:8px; }
+.reservoir-count { font-size:10px; background:#F4E9D8; color:#6B6B6B; padding:2px 8px; border-radius:10px; }
+
+.element-item { padding:10px 12px; background:#FAFAFA; border-radius:8px; border:1px solid #E8DDD0; margin-bottom:6px; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.element-nom { font-size:13px; color:#1A1A1A; font-weight:500; flex:1; }
+.element-statut { font-size:10px; padding:2px 8px; border-radius:10px; font-weight:600; flex-shrink:0; }
+.statut-REEL { background:rgba(45,106,79,0.1); color:#2D6A4F; }
+.statut-POT { background:rgba(201,132,42,0.1); color:#C9842A; }
+.statut-HYP { background:#F0F0F0; color:#6B6B6B; }
+.statut-ACTIF { background:rgba(45,106,79,0.2); color:#2D6A4F; font-weight:700; }
+.statut-SIM { background:rgba(41,128,185,0.1); color:#2980B9; }
+
+.element-actions { display:flex; gap:4px; }
+.btn-edit { background:none; border:1px solid #E8DDD0; border-radius:6px; padding:3px 8px; font-size:10px; color:#6B6B6B; cursor:pointer; }
+.btn-edit:hover { background:#F4E9D8; }
+
+/* FORMULAIRE AJOUT */
+.add-form { background:#F4E9D8; border-radius:8px; padding:12px; margin-top:8px; display:none; }
+.add-form.open { display:block; }
+.add-form input, .add-form select { width:100%; border:1px solid #E8DDD0; border-radius:6px; padding:8px 10px; font-size:13px; font-family:Arial; outline:none; background:white; margin-bottom:8px; }
+.add-form-btns { display:flex; gap:8px; }
+.btn-save { background:#2D6A4F; color:white; border:none; border-radius:6px; padding:8px 16px; font-size:12px; font-weight:600; cursor:pointer; flex:1; }
+.btn-cancel { background:white; color:#6B6B6B; border:1px solid #E8DDD0; border-radius:6px; padding:8px 16px; font-size:12px; cursor:pointer; }
+.btn-add { width:100%; background:none; border:1px dashed #E8DDD0; border-radius:8px; padding:8px; font-size:12px; color:#6B6B6B; cursor:pointer; margin-top:6px; }
+.btn-add:hover { background:#F4E9D8; border-color:#C9842A; color:#C9842A; }
+
+/* CONVERGENCE */
+.convergence { background:linear-gradient(135deg,#2D6A4F,#3D8B6A); border-radius:12px; padding:16px 20px; color:white; display:flex; align-items:center; gap:14px; margin-bottom:12px; animation:pulse 2s infinite; }
+@keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(45,106,79,0.4);} 50%{box-shadow:0 0 0 8px rgba(45,106,79,0);} }
+
+/* BOUSSOLE */
+.boussole-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.boussole-label { font-size:10px; color:#6B6B6B; text-transform:uppercase; letter-spacing:0.05em; }
+.boussole-valeur { font-size:18px; font-weight:700; color:#2D6A4F; margin:3px 0 2px; }
+.boussole-sub { font-size:10px; color:#6B6B6B; }
+
+/* ALERTES */
+.alerte-item { display:flex; align-items:flex-start; gap:8px; padding:8px 0; border-bottom:1px solid #F0E8DC; font-size:12px; }
+.alerte-item:last-child { border-bottom:none; }
+.alerte-time { font-size:10px; color:#6B6B6B; font-family:monospace; flex-shrink:0; }
+
+/* BOUTONS */
+.refresh-btn { width:100%; background:#1A1A1A; color:white; border:none; border-radius:10px; padding:12px; font-size:13px; font-weight:600; cursor:pointer; margin-bottom:12px; }
+.footer { text-align:center; font-size:10px; color:#6B6B6B; padding:16px 0 32px; font-family:monospace; }
+
+/* SPINNER */
+.spinner { width:28px; height:28px; border:3px solid #E8DDD0; border-top-color:#2D6A4F; border-radius:50%; animation:spin 0.8s linear infinite; margin:0 auto 12px; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* CONFIG */
+.config-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:200; display:flex; align-items:center; justify-content:center; padding:20px; }
+.config-box { background:white; border-radius:16px; padding:24px; width:100%; max-width:400px; }
+.config-title { font-size:16px; font-weight:700; color:#2D6A4F; margin-bottom:16px; }
+.config-label { font-size:11px; font-weight:600; color:#6B6B6B; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px; margin-top:12px; }
+.config-input { width:100%; border:1px solid #E8DDD0; border-radius:8px; padding:10px 12px; font-size:13px; font-family:monospace; outline:none; background:#F4E9D8; }
+.config-btn { width:100%; background:#2D6A4F; color:white; border:none; border-radius:8px; padding:12px; font-size:14px; font-weight:700; cursor:pointer; margin-top:20px; }
+.config-note { font-size:11px; color:#6B6B6B; margin-top:12px; line-height:1.5; }
+</style>
+</head>
+<body>
+
+<!-- CONFIG -->
+<div class="config-overlay" id="configOverlay">
+  <div class="config-box">
+    <div class="config-title">🌿 VAH Dashboard CPU V2</div>
+    <div class="config-label">URL Firebase Realtime Database</div>
+    <input class="config-input" id="firebaseUrl" placeholder="https://vah-simulation-default-rtdb.europe-west1.firebasedatabase.app">
+    <div class="config-note">Sans slash à la fin. Firebase Console → Realtime Database.</div>
+    <button class="config-btn" onclick="saveConfig()">Connecter</button>
+  </div>
+</div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <div class="logo">🌿</div>
+    <div>
+      <div class="header-title">VAH — Dashboard CPU V2</div>
+      <div class="header-sub" id="lastUpdate">La Fabrik'École · Mbour</div>
+    </div>
+  </div>
+  <div class="cpu-badge" onclick="localStorage.clear();location.reload()">⚙ Config</div>
+</div>
+
+<!-- ONGLETS -->
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('statuts')" id="tab-statuts">📊 Statuts</div>
+  <div class="tab" onclick="switchTab('reservoirs')" id="tab-reservoirs">🗄 Réservoirs</div>
+  <div class="tab" onclick="switchTab('pool')" id="tab-pool">👥 Pool</div>
+  <div class="tab" onclick="switchTab('alertes')" id="tab-alertes">🔔 Alertes</div>
+</div>
+
+<!-- MAIN -->
+<div class="main" id="mainContent">
+  <div style="text-align:center;padding:60px 20px">
+    <div class="spinner"></div>
+    <p style="color:#6B6B6B;font-size:14px">Chargement...</p>
+  </div>
+</div>
+
+<script>
+// ─── CONFIG ──────────────────────────────────────────────────────
+const ACTEURS_CONFIG = {
+  michael: { nom:"Michael Ciré Bâ", role:"CPU — Fondateur",       noeud:"La Fabrik'École · Mbour",  isCPU:true  },
+  charles: { nom:"Charles Haddad",  role:"Ancre territoriale",    noeud:"Ngoltongo · Sindia",        isCPU:false },
+  carole:  { nom:"Carole",          role:"Architecte portail",    noeud:"Adwo Lodge · Petite Côte",  isCPU:false },
+  michel:  { nom:"Michel",          role:"Ambassadeur",           noeud:"Adwo Lodge · Abidjan",      isCPU:false },
+  babacar: { nom:"Babacar Cissé",   role:"Co-Architecte physique",noeud:"Protosen · Dakar",          isCPU:false },
+};
+
+const STATUTS_CONFIG = {
+  decouverte:   { label:"En découverte",    emoji:"⚪" },
+  construction: { label:"En construction",  emoji:"🟡" },
+  vert:         { label:"Opérationnel",     emoji:"🟢" },
+  rouge:        { label:"Ne participe pas", emoji:"🔴" },
+};
+
+// Réservoirs par défaut (enrichissables depuis le dashboard)
+let RESERVOIRS = {
+  competences: [
+    { nom:"Michael — CNC & Numérique", statut:"ACTIF", note:"CNC · Arduino · 3D · dev web · scénographie" },
+    { nom:"Babacar / Protosen — CNC Dakar", statut:"REEL", note:"Fabrication numérique · impression 3D" },
+    { nom:"Benjamin Flahaut / Flao", statut:"SIM", note:"Illustration BD · La Vie secrète des arbres" },
+    { nom:"Christian Thellier / Toons", statut:"SIM", note:"Lumière · drones · Fête des Lumières Lyon" },
+    { nom:"Alexandre Ba — ESME Lille", statut:"SIM", note:"CNC · IoT · IA · FabLab Manager" },
+    { nom:"Abda N'Diaye — N'Didance", statut:"SIM", note:"Danse · TEDxLille 2018 · maison à Saly" },
+  ],
+  projets: [
+    { nom:"Fabrication à la Demande", statut:"REEL", note:"Service premium · CNC → livraison certifiée", priorite:"P1" },
+    { nom:"Collection Signature", statut:"REEL", note:"Co-production artiste + Fabrik'École", priorite:"P1" },
+    { nom:"Collection Hybride", statut:"REEL", note:"Lab créatif interne · R&D", priorite:"P2" },
+    { nom:"Chantiers Participatifs", statut:"REEL", note:"3 missions · Ngoltongo · local · international", priorite:"P1" },
+    { nom:"Labo Itinérant / Remorque CNC", statut:"ACTIF", note:"Extension mobile · formation · démo", priorite:"P0" },
+    { nom:"Sessions Expérimentales", statut:"REEL", note:"R&D · matières récupérées · moteur innovation", priorite:"P2" },
+    { nom:"Racines", statut:"REEL", note:"Installation itinérante · Dak'Art 2028", priorite:"P0" },
+    { nom:"Collection Patrimoniale", statut:"POT", note:"Savoirs ancestraux · Pôle IA patrimonial", priorite:"P3" },
+  ],
+  matieres: [
+    { nom:"Dimba — bois clair jaune", statut:"REEL", note:"Abondant · production courante" },
+    { nom:"Caïcedrat / Khaya senegalensis", statut:"REEL", note:"Acajou Sénégal · noble · emblématique" },
+    { nom:"Vène", statut:"REEL", note:"Essence noble · finitions premium" },
+    { nom:"Azobé", statut:"REEL", note:"Bois de fer · résistance exceptionnelle" },
+    { nom:"Fraké", statut:"REEL", note:"Bois blanc · légèreté · travail fin" },
+    { nom:"Ébène", statut:"REEL", note:"⚠️ Rare · validation CPU obligatoire" },
+    { nom:"Matières récupérées", statut:"POT", note:"Chutes · rebuts · déchets industriels locaux" },
+  ],
+  fablabs: [
+    { nom:"Protosen / Babacar — Dakar", statut:"REEL", note:"Partenariat actif · CNC" },
+    { nom:"Polylab EPT — Thiès", statut:"POT", note:"Dr Ibrahima Gueye · académique" },
+    { nom:"FabLab Orange — Dakar", statut:"POT", note:"Réseau national · connexion à activer" },
+    { nom:"FabLab Diamniadio", statut:"POT", note:"Sénégal Digital Factory · PNUD" },
+    { nom:"Alexandre Ba — ESME Lille", statut:"SIM", note:"E-SmartLab 150m² · FabLabs de France" },
+  ],
+};
+
+let FIREBASE_URL = '';
+let currentTab = 'statuts';
+let refreshInterval = null;
+let lastData = { statuts: {}, users: {}, convergence: null, alertes: {} };
+let addFormOpen = {}; // track open add forms
+
+// ─── CONFIG ──────────────────────────────────────────────────────
+function saveConfig() {
+  const url = document.getElementById('firebaseUrl').value.trim().replace(/\/$/, '');
+  if (!url || !url.includes('firebasedatabase')) { alert('URL invalide'); return; }
+  localStorage.setItem('vah_firebase_url', url);
+  FIREBASE_URL = url;
+  document.getElementById('configOverlay').style.display = 'none';
+  loadData();
+  refreshInterval = setInterval(loadData, 10000);
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  renderTab();
+}
+
+// ─── FIREBASE REST ────────────────────────────────────────────────
+async function fetchFB(path) {
+  const res = await fetch(`${FIREBASE_URL}/${path}.json`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return await res.json();
+}
+
+async function putFB(path, data) {
+  const res = await fetch(`${FIREBASE_URL}/${path}.json`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  return res.ok;
+}
+
+async function loadData() {
+  try {
+    const [statuts, users, convergence, alertes] = await Promise.all([
+      fetchFB('global/statuts').catch(() => ({})),
+      fetchFB('users').catch(() => ({})),
+      fetchFB('global/convergence').catch(() => null),
+      fetchFB('global/alertes').catch(() => ({})),
+    ]);
+    lastData = { statuts: statuts || {}, users: users || {}, convergence, alertes: alertes || {} };
+    const now = new Date();
+    document.getElementById('lastUpdate').textContent =
+      `Mis à jour ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+    renderTab();
+  } catch(err) {
+    console.error('Erreur chargement:', err);
+  }
+}
+
+// ─── RENDER ───────────────────────────────────────────────────────
+function renderTab() {
+  const main = document.getElementById('mainContent');
+  if (currentTab === 'statuts') main.innerHTML = renderStatuts();
+  else if (currentTab === 'reservoirs') main.innerHTML = renderReservoirs();
+  else if (currentTab === 'pool') main.innerHTML = renderPool();
+  else if (currentTab === 'alertes') main.innerHTML = renderAlertes();
+}
+
+// ── ONGLET STATUTS ────────────────────────────────────────────────
+function renderStatuts() {
+  const { statuts, convergence } = lastData;
+  const actifs = Object.entries(ACTEURS_CONFIG).filter(([id,a]) => !a.isCPU);
+  const vertsCount = actifs.filter(([id]) => statuts[id]?.statut === 'vert').length;
+  const actifsCount = actifs.filter(([id]) => statuts[id]?.statut !== 'rouge').length;
+  const isConvergence = convergence?.atteinte || (actifsCount > 0 && vertsCount === actifsCount && actifsCount >= 4);
+  const progression = actifsCount > 0 ? Math.round((vertsCount / actifsCount) * 100) : 0;
+
+  let html = '';
+
+  if (isConvergence) {
+    html += `<div class="convergence">
+      <span style="font-size:28px">🌿</span>
+      <div>
+        <div style="font-size:16px;font-weight:700">Convergence atteinte</div>
+        <div style="font-size:12px;opacity:0.85;margin-top:3px">Tous les statuts actifs sont verts — convoquer la réunion</div>
+      </div>
+    </div>`;
+  }
+
+  // Grille acteurs
+  html += `<div class="acteurs-grid">`;
+
+  // CPU
+  html += `<div class="acteur-card cpu">
+    <div class="graine cpu">🌿</div>
+    <div class="acteur-nom">Michael Ciré Bâ <span style="font-size:9px;background:rgba(201,132,42,0.8);color:white;padding:1px 4px;border-radius:3px;margin-left:4px">CPU</span></div>
+    <div class="acteur-role">CPU — Fondateur · La Fabrik'École · Mbour</div>
+    <div class="statut-pill cpu">🟢 Opérationnel</div>
+  </div>`;
+
+  actifs.forEach(([id, acteur]) => {
+    const statut = statuts[id]?.statut || 'decouverte';
+    const s = STATUTS_CONFIG[statut] || STATUTS_CONFIG.decouverte;
+    const graineEmoji = statut === 'vert' ? '🌿' : statut === 'construction' ? '🌱' : statut === 'rouge' ? '🪵' : '○';
+    const userData = Object.values(lastData.users).find(u => u.acteurId === id) || {};
+    const profil = userData.profil || {};
+    const nbPartages = profil.donneesPartagees ? (Array.isArray(profil.donneesPartagees) ? profil.donneesPartagees.length : Object.keys(profil.donneesPartagees).length) : 0;
+
+    html += `<div class="acteur-card ${statut}" onclick="toggleDetail(this)">
+      <div class="graine ${statut}">${graineEmoji}</div>
+      <div class="acteur-nom">${acteur.nom.split(' ')[0]}${nbPartages > 0 ? ` <span style="font-size:9px;background:rgba(45,106,79,0.1);color:#2D6A4F;padding:1px 5px;border-radius:8px">👥${nbPartages}</span>` : ''}</div>
+      <div class="acteur-role">${acteur.role}</div>
+      <div class="statut-pill ${statut}">${s.emoji} ${s.label}</div>
+      <div class="acteur-detail">
+        ${profil.apporte ? `<div class="detail-line">Apporte : <span class="detail-val">${profil.apporte}</span></div>` : ''}
+        ${profil.besoin ? `<div class="detail-line">Besoin : <span class="detail-val">${profil.besoin}</span></div>` : ''}
+        ${profil.role_choisi ? `<div class="detail-line">Rôle choisi : <span class="detail-val">${profil.role_choisi}</span></div>` : ''}
+        ${profil.nb_simulations ? `<div class="detail-line">Simulations : <span class="detail-val">${profil.nb_simulations}</span></div>` : ''}
+        ${profil.types_explores ? `<div class="detail-line">Types : <span class="detail-val">${profil.types_explores.join(' · ')}</span></div>` : ''}
+        ${profil.derniere_session ? `<div class="detail-line">Dernière session : <span class="detail-val">${profil.derniere_session}</span></div>` : ''}
+      </div>
+    </div>`;
+  });
+  html += `</div>`;
+
+  // Progression
+  html += `<div class="card">
+    <div class="progression-header">
+      <span class="progression-label">Progression vers la réunion</span>
+      <span class="progression-count">${vertsCount} / ${actifsCount} opérationnels</span>
+    </div>
+    <div class="barre-fond"><div class="barre" style="width:${progression}%"></div></div>
+  </div>`;
+
+  // Boussole
+  html += `<div class="card"><div class="card-title">Boussole temporelle</div>
+  <div class="boussole-grid">
+    <div><div class="boussole-label">Engagement</div><div class="boussole-valeur">2 ans</div><div class="boussole-sub">Maintenant → 2028</div></div>
+    <div><div class="boussole-label">Horizon</div><div class="boussole-valeur">Dak'Art</div><div class="boussole-sub">Biennale Dakar 2028</div></div>
+    <div><div class="boussole-label">Deadline OFF</div><div class="boussole-valeur">Fév 2028</div><div class="boussole-sub">⚠️ Critique</div></div>
+    <div><div class="boussole-label">Après 2028</div><div class="boussole-valeur">Implantation</div><div class="boussole-sub">Village Physique Unifié</div></div>
+  </div></div>`;
+
+  html += `<button class="refresh-btn" onclick="loadData()">↻ Actualiser</button>`;
+  html += `<div class="footer">VAH · Dashboard CPU V2 · Confidentiel · Michael Ciré Bâ · Auto-refresh 10s</div>`;
+  return html;
+}
+
+// ── ONGLET RÉSERVOIRS ─────────────────────────────────────────────
+function renderReservoirs() {
+  const sections = [
+    { key:'competences', titre:'🧠 Compétences', icon:'🧠' },
+    { key:'projets',     titre:'🚀 Projets',     icon:'🚀' },
+    { key:'matieres',    titre:'🪵 Matières',    icon:'🪵' },
+    { key:'fablabs',     titre:'⚙️ FabLabs',    icon:'⚙️' },
+  ];
+
+  let html = '';
+
+  sections.forEach(({ key, titre }) => {
+    const items = RESERVOIRS[key] || [];
+    html += `<div class="card reservoir-section">
+      <div class="reservoir-title">${titre} <span class="reservoir-count">${items.length} éléments</span></div>`;
+
+    items.forEach((item, idx) => {
+      html += `<div class="element-item">
+        <div>
+          <div class="element-nom">${item.nom}</div>
+          ${item.note ? `<div style="font-size:10px;color:#6B6B6B;margin-top:2px">${item.note}</div>` : ''}
+          ${item.priorite ? `<span style="font-size:9px;background:#F4E9D8;color:#C9842A;padding:1px 5px;border-radius:6px;margin-top:2px;display:inline-block">${item.priorite}</span>` : ''}
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+          <span class="element-statut statut-${item.statut}">${item.statut}</span>
+          <button class="btn-edit" onclick="supprimerElement('${key}', ${idx})">✕</button>
+        </div>
+      </div>`;
+    });
+
+    // Formulaire ajout
+    const formId = `form-${key}`;
+    html += `<div class="add-form" id="${formId}">
+      <input type="text" id="${formId}-nom" placeholder="Nom de l'élément">
+      <input type="text" id="${formId}-note" placeholder="Description (optionnel)">
+      <select id="${formId}-statut">
+        <option value="REEL">🟢 RÉEL — disponible maintenant</option>
+        <option value="POT">🟡 POT — potentiel confirmé</option>
+        <option value="HYP">⚪ HYP — hypothétique</option>
+        <option value="ACTIF">✅ ACTIF — en cours</option>
+        <option value="SIM">🔵 SIM — simulé</option>
+      </select>
+      ${key === 'projets' ? `<select id="${formId}-priorite">
+        <option value="P0">P0 — Critique</option>
+        <option value="P1">P1 — Haute</option>
+        <option value="P2" selected>P2 — Normale</option>
+        <option value="P3">P3 — Basse</option>
+        <option value="P4">P4 — Exploration</option>
+      </select>` : ''}
+      <div class="add-form-btns">
+        <button class="btn-save" onclick="ajouterElement('${key}')">✓ Ajouter</button>
+        <button class="btn-cancel" onclick="fermerForm('${formId}')">Annuler</button>
+      </div>
+    </div>`;
+
+    html += `<button class="btn-add" onclick="ouvrirForm('${formId}')">+ Ajouter un élément</button>`;
+    html += `</div>`;
+  });
+
+  html += `<div class="footer">Modifications sauvegardées localement · Sync Firebase à venir</div>`;
+  return html;
+}
+
+// ── ONGLET POOL ───────────────────────────────────────────────────
+function renderPool() {
+  const { users } = lastData;
+  let poolItems = [];
+  let profilsItems = [];
+
+  Object.values(users || {}).forEach(userData => {
+    const acteurId = userData.acteurId;
+    if (!acteurId || !ACTEURS_CONFIG[acteurId]) return;
+    const nom = ACTEURS_CONFIG[acteurId].nom.split(' ')[0];
+    const profil = userData.profil || {};
+
+    // Données partagées
+    const partages = profil.donneesPartagees || [];
+    const arr = Array.isArray(partages) ? partages : Object.values(partages);
+    arr.forEach(d => poolItems.push({ nom, texte: d.texte || d }));
+
+    // Profils
+    if (profil.apporte || profil.besoin) {
+      profilsItems.push({ nom, apporte: profil.apporte, besoin: profil.besoin, role: profil.role_choisi || profil.role_initial });
+    }
+  });
+
+  let html = `<div class="card"><div class="card-title">Données partagées 👥</div>`;
+  if (poolItems.length === 0) {
+    html += `<div class="pool-vide">Aucune donnée partagée pour l'instant.</div>`;
+  } else {
+    poolItems.forEach(item => {
+      html += `<div class="pool-item"><span class="pool-acteur">${item.nom}</span><span class="pool-texte">${item.texte}</span></div>`;
+    });
+  }
+  html += `</div>`;
+
+  html += `<div class="card"><div class="card-title">Profils déclarés</div>`;
+  if (profilsItems.length === 0) {
+    html += `<div class="pool-vide">Aucun profil encore renseigné.</div>`;
+  } else {
+    profilsItems.forEach(p => {
+      html += `<div style="padding:10px 0;border-bottom:1px solid #F0E8DC">
+        <div style="font-size:12px;font-weight:700;color:#2D6A4F;margin-bottom:4px">${p.nom}</div>
+        ${p.role ? `<div style="font-size:11px;color:#6B6B6B">Rôle : ${p.role}</div>` : ''}
+        ${p.apporte ? `<div style="font-size:11px;color:#1A1A1A;margin-top:3px">✓ Apporte : ${p.apporte}</div>` : ''}
+        ${p.besoin ? `<div style="font-size:11px;color:#1A1A1A;margin-top:2px">→ Besoin : ${p.besoin}</div>` : ''}
+      </div>`;
+    });
+  }
+  html += `</div>`;
+
+  html += `<button class="refresh-btn" onclick="loadData()">↻ Actualiser</button>`;
+  html += `<div class="footer">VAH · Pool partagé · Confidentiel CPU</div>`;
+  return html;
+}
+
+// ── ONGLET ALERTES ────────────────────────────────────────────────
+function renderAlertes() {
+  const { alertes } = lastData;
+  const items = Object.values(alertes || {});
+
+  let html = `<div class="card"><div class="card-title">Alertes système 🔔</div>`;
+  if (items.length === 0) {
+    html += `<div class="pool-vide">Aucune alerte active.</div>`;
+  } else {
+    items.slice(-10).reverse().forEach(a => {
+      const date = a.date ? new Date(a.date).toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '—';
+      const typeLabel = a.type === 'sortie' ? '🔴 Sortie' : a.type === 'convergence' ? '🌿 Convergence' : a.type;
+      html += `<div class="alerte-item">
+        <span>${typeLabel} — ${a.acteur || ''}</span>
+        <span class="alerte-time">${date}</span>
+      </div>`;
+    });
+  }
+  html += `</div>`;
+
+  html += `<button class="refresh-btn" onclick="loadData()">↻ Actualiser</button>`;
+  html += `<div class="footer">VAH · Alertes CPU · Confidentiel</div>`;
+  return html;
+}
+
+// ─── ACTIONS RÉSERVOIRS ───────────────────────────────────────────
+function toggleDetail(card) {
+  card.classList.toggle('expanded');
+}
+
+function ouvrirForm(formId) {
+  document.querySelectorAll('.add-form').forEach(f => f.classList.remove('open'));
+  document.getElementById(formId).classList.add('open');
+}
+
+function fermerForm(formId) {
+  document.getElementById(formId).classList.remove('open');
+}
+
+function ajouterElement(key) {
+  const formId = `form-${key}`;
+  const nom = document.getElementById(`${formId}-nom`).value.trim();
+  const note = document.getElementById(`${formId}-note`).value.trim();
+  const statut = document.getElementById(`${formId}-statut`).value;
+  const prioriteEl = document.getElementById(`${formId}-priorite`);
+  const priorite = prioriteEl ? prioriteEl.value : null;
+
+  if (!nom) { alert('Le nom est obligatoire'); return; }
+
+  const element = { nom, statut };
+  if (note) element.note = note;
+  if (priorite) element.priorite = priorite;
+
+  RESERVOIRS[key].push(element);
+  fermerForm(formId);
+  renderTab();
+
+  // Sauvegarder dans localStorage
+  localStorage.setItem('vah_reservoirs', JSON.stringify(RESERVOIRS));
+}
+
+function supprimerElement(key, idx) {
+  if (!confirm(`Supprimer "${RESERVOIRS[key][idx].nom}" ?`)) return;
+  RESERVOIRS[key].splice(idx, 1);
+  renderTab();
+  localStorage.setItem('vah_reservoirs', JSON.stringify(RESERVOIRS));
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────
+window.onload = () => {
+  // Charger réservoirs depuis localStorage si modifiés
+  const savedReservoirs = localStorage.getItem('vah_reservoirs');
+  if (savedReservoirs) {
+    try { RESERVOIRS = JSON.parse(savedReservoirs); } catch(e) {}
+  }
+
+  const savedUrl = localStorage.getItem('vah_firebase_url');
+  if (savedUrl) {
+    FIREBASE_URL = savedUrl;
+    document.getElementById('configOverlay').style.display = 'none';
+    loadData();
+    refreshInterval = setInterval(loadData, 10000);
+  }
+};
+</script>
+</body>
+</html>
